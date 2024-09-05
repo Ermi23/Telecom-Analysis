@@ -1,0 +1,9 @@
+matplotlib
+nltk
+pandas
+pick
+seaborn
+sqlalchemy
+psycopg2
+pandas
+sql
