@@ -323,3 +323,138 @@ class UserEngagementAnalysis:
         """Convert all relevant metrics to consistent units (e.g., seconds for duration)."""
         if 'Dur. (ms)' in self.dataframe.columns:
             self.dataframe['Dur. (seconds)'] = self.dataframe['Dur. (ms)'] / 1000  # Convert milliseconds to seconds
+
+class NeededMethodsForUserEngagementAnalysis:
+    def __init__(self, dataframe):
+        self.dataframe = dataframe
+        self.agg_dataframe = None
+
+    def info(self):
+        """Display information about the DataFrame."""
+        if self.dataframe is not None:
+            print("DataFrame Info:")
+            self.dataframe.info()
+        else:
+            print("No DataFrame to analyze.")
+
+    def aggregate_data(self):
+        """Calculate total session durations and aggregate data."""
+        self.agg_dataframe = self.dataframe.groupby('MSISDN/Number').agg({
+            'Dur. (ms)': 'sum',
+            'Total DL (Bytes)': 'sum',
+            'Total UL (Bytes)': 'sum'
+        }).reset_index()
+        
+        self.agg_dataframe['Total Session Duration'] = self.agg_dataframe['Dur. (ms)'] / 1000  # Convert to seconds
+        self.agg_dataframe['Total Data (DL+UL)'] = self.agg_dataframe['Total DL (Bytes)'] + self.agg_dataframe['Total UL (Bytes)']
+
+    def top_customers_by_metric(self, metric, top_n=10):
+        """Return top N customers by a specified engagement metric."""
+        if self.agg_dataframe is not None and metric in self.agg_dataframe.columns:
+            top_customers = self.agg_dataframe.nlargest(top_n, metric)
+            print(f"Top {top_n} customers by {metric}:")
+            print(top_customers[['MSISDN/Number', metric]])
+            return top_customers
+        else:
+            print("No aggregated DataFrame to analyze or invalid metric.")
+            return None
+
+    def normalize_and_cluster(self):
+        """Normalize user engagement metrics and perform clustering."""
+        scaler = StandardScaler()
+        self.numeric_dataframe = self.agg_dataframe[['Total Session Duration', 'Total Data (DL+UL)']]
+        scaled_data = scaler.fit_transform(self.numeric_dataframe)
+
+        kmeans = KMeans(n_clusters=3)  # Initial number of clusters
+        clusters = kmeans.fit_predict(scaled_data)
+
+        self.agg_dataframe['Cluster'] = clusters
+
+    def analyze_clusters(self):
+        """Analyze clusters and get descriptive statistics."""
+        if self.agg_dataframe is not None:
+            cluster_data = self.agg_dataframe.groupby('Cluster')
+            stats = cluster_data[['Dur. (ms)', 'Total DL (Bytes)', 'Total UL (Bytes)', 
+                                  'Total Session Duration', 'Total Data (DL+UL)']].agg(['min', 'max', 'mean', 'sum'])
+            return stats
+        else:
+            print("No aggregated DataFrame to analyze.")
+            return None
+
+    def plot_cluster_stats(self, stats, feature):
+        """Plot bar chart for cluster statistics."""
+        plt.figure(figsize=(10, 6))
+        stats[feature].plot(kind='bar', title=f'Statistics of {feature} by Cluster')
+        plt.xlabel('Cluster')
+        plt.ylabel(feature)
+        plt.show()
+
+    def aggregate_traffic_per_application(self):
+        """Aggregate user total traffic per application."""
+        app_columns = ['HTTP DL (Bytes)', 'HTTP UL (Bytes)', 'Social Media DL (Bytes)', 
+                       'Social Media DL (Bytes)', 'Social Media UL (Bytes)',
+                        'Google DL (Bytes)', 'Google UL (Bytes)',
+                        'Email DL (Bytes)', 'Email UL (Bytes)',
+                        'Youtube DL (Bytes)', 'Youtube UL (Bytes)',
+                        'Netflix DL (Bytes)', 'Netflix UL (Bytes)',
+                        'Gaming DL (Bytes)', 'Gaming UL (Bytes)',
+                        'Other DL (Bytes)', 'Other UL (Bytes)']
+        
+        if 'MSISDN/Number' in self.dataframe.columns:
+            self.app_traffic = self.dataframe.groupby('MSISDN/Number')[app_columns].sum().reset_index()
+            self.app_traffic['Total Traffic'] = self.app_traffic[app_columns].sum(axis=1)
+            return self.app_traffic.nlargest(10, 'Total Traffic')
+        else:
+            print("No DataFrame to aggregate application traffic.")
+            return None
+
+    def plot_top_applications(self, top_n=3):
+        """Plot the top N most used applications."""
+        app_columns = ['HTTP DL (Bytes)', 'HTTP UL (Bytes)', 'Social Media DL (Bytes)', 
+                'Social Media DL (Bytes)', 'Social Media UL (Bytes)',
+                'Google DL (Bytes)', 'Google UL (Bytes)',
+                'Email DL (Bytes)', 'Email UL (Bytes)',
+                'Youtube DL (Bytes)', 'Youtube UL (Bytes)',
+                'Netflix DL (Bytes)', 'Netflix UL (Bytes)',
+                'Gaming DL (Bytes)', 'Gaming UL (Bytes)',
+                'Other DL (Bytes)', 'Other UL (Bytes)']
+        if hasattr(self, 'app_traffic'):
+            top_apps = self.app_traffic.nlargest(top_n, 'Total Traffic')
+            top_apps.set_index('MSISDN/Number')[app_columns].plot(kind='bar', figsize=(12, 6))
+            plt.title(f'Top {top_n} Applications Used by Users')
+            plt.xlabel('User (MSISDN)')
+            plt.ylabel('Total Traffic (Bytes)')
+            plt.xticks(rotation=45)
+            plt.show()
+        else:
+            print("No application traffic data to plot.")
+
+    def elbow_method(self, max_k=10):
+        """Determine the optimal number of clusters using the elbow method."""
+        if self.numeric_dataframe is not None:
+            inertia = []
+            for k in range(1, max_k + 1):
+                kmeans = KMeans(n_clusters=k)
+                kmeans.fit(self.numeric_dataframe)
+                inertia.append(kmeans.inertia_)
+            
+            plt.figure(figsize=(10, 6))
+            plt.plot(range(1, max_k + 1), inertia, marker='o')
+            plt.title('Elbow Method for Optimal k')
+            plt.xlabel('Number of Clusters (k)')
+            plt.ylabel('Inertia')
+            plt.grid(True)
+            plt.show()
+        else:
+            print("Numeric DataFrame is not available for elbow method.")
+
+    def interpret_clusters(self, stats):
+        """Interpret the clustering results and provide insights."""
+        if stats is not None:
+            for cluster in stats.index:
+                print(f"Cluster {cluster}:")
+                print(f"  Min Total Session Duration: {stats.loc[cluster, ('Total Session Duration', 'min')]:.2f} seconds")
+                print(f"  Max Total Session Duration: {stats.loc[cluster, ('Total Session Duration', 'max')]:.2f} seconds")
+                print(f"  Avg Total Session Duration: {stats.loc[cluster, ('Total Session Duration', 'mean')]:.2f} seconds")
+                print(f"  Total Data Usage: {stats.loc[cluster, ('Total Data (DL+UL)', 'sum')]} Bytes")
+                print("")

@@ -764,3 +764,65 @@ class DataAnalysis:
         plt.grid(True)
         plt.tight_layout()
         plt.show()
+
+    def correlation_analysis(self):
+        """Compute and return the correlation matrix for specific variables."""
+        correlation_vars = ['Social Media DL (Bytes)', 'Google DL (Bytes)', 'Email DL (Bytes)', 
+                            'Youtube DL (Bytes)', 'Netflix DL (Bytes)', 'Gaming DL (Bytes)', 'Other DL (Bytes)']
+        correlation_matrix = self.dataframe[correlation_vars].corr()
+        return correlation_matrix
+    
+    def bivariate_analysis(self):
+        """Analyze relationships between each application and total DL+UL data."""
+        app_columns = ['Social Media DL (Bytes)', 'Google DL (Bytes)', 'Email DL (Bytes)', 
+                    'Youtube DL (Bytes)', 'Netflix DL (Bytes)', 'Gaming DL (Bytes)', 'Other DL (Bytes)']
+        self.dataframe['Total DL+UL (Bytes)'] = self.dataframe[app_columns].sum(axis=1)
+        
+        bivariate_results = {}
+        for app in app_columns:
+            correlation = self.dataframe[app].corr(self.dataframe['Total DL+UL (Bytes)'])
+            bivariate_results[app] = correlation
+        
+        return bivariate_results
+
+    def univariate_analysis(self):
+        """Compute dispersion parameters for each quantitative variable."""
+        quantitative_vars = self.dataframe.select_dtypes(include=['number']).columns
+        dispersion_params = {}
+        
+        for var in quantitative_vars:
+            dispersion_params[var] = {
+                'Mean': self.dataframe[var].mean(),
+                'Median': self.dataframe[var].median(),
+                'Variance': self.dataframe[var].var(),
+                'Standard Deviation': self.dataframe[var].std(),
+                'IQR': self.dataframe[var].quantile(0.75) - self.dataframe[var].quantile(0.25)
+            }
+        
+        return dispersion_params
+
+    def compute_total_data_per_decile(self):
+        """Compute total download and upload data per decile class."""
+        decile_data = self.dataframe.groupby('Decile Class').agg({
+            'Total DL (Bytes)': 'sum',
+            'Total UL (Bytes)': 'sum'
+        }).reset_index()
+        decile_data['Total Data (Bytes)'] = decile_data['Total DL (Bytes)'] + decile_data['Total UL (Bytes)']
+        return decile_data
+
+    # def segment_users_into_deciles(self):
+    #     """Segment users into decile classes based on total session duration."""
+    #     self.dataframe['Total Duration (s)'] = self.dataframe['Dur. (ms)'] / 1000  # Convert ms to seconds
+    #     self.dataframe['Decile Class'] = pd.qcut(self.dataframe['Total Duration (s)'], 10, labels=False, duplicates='drop')
+    #     return self.dataframe[['MSISDN/Number', 'Decile Class', 'Total Duration (s)']]
+    
+    def segment_users_into_deciles(self):
+        """Segment users into decile classes based on total session duration."""
+        self.dataframe['Total Duration (s)'] = self.dataframe['Dur. (ms)'] / 1000  # Convert ms to seconds
+        
+        # Check number of unique values
+        unique_values = self.dataframe['Total Duration (s)'].nunique()
+        num_deciles = min(10, unique_values)  # Use the lesser of 10 or unique values
+        
+        self.dataframe['Decile Class'] = pd.qcut(self.dataframe['Total Duration (s)'], num_deciles, labels=False, duplicates='drop')
+        return self.dataframe[['MSISDN/Number', 'Decile Class', 'Total Duration (s)']]
