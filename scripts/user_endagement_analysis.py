@@ -5,6 +5,8 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
 # Set display options to show more rows and columns
 pd.set_option('display.max_rows', None)  # Show all rows
@@ -245,3 +247,79 @@ class UserEngagementAnalysis:
         plt.title('Cumulative Variance Explained by Principal Components')
         plt.grid(True)
         plt.show()
+    
+    def determine_optimal_components(self, threshold=0.8):
+        """Determine the optimal number of components to explain a significant portion of variance."""
+        num_components = len(self.cumulative_variance_explained[self.cumulative_variance_explained <= threshold])
+        print("Number of Components to Explain 80% Variance:", num_components)
+        return num_components
+
+    def analyze_loadings(self):
+        """Analyze the loadings of each feature on the principal components."""
+        principal_components = self.pca_model.components_
+        print("Principal Components shape:", principal_components.shape)
+        return principal_components
+
+    def aggregate_metric_analyze(self):
+        """Aggregate user engagement metrics and analyze them."""
+        # Implement your aggregation logic here
+        # Example: Calculate session frequency, duration, and total data traffic
+        # This is a placeholder for actual implementation
+        print("Aggregating user engagement metrics...")
+        return self.dataframe[['Session Duration (seconds)', 'Dur. (ms)', 'Total UL + DL']].describe()
+
+    def normalize_and_cluster(self):
+        """Normalize user engagement metrics and perform clustering."""
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(self.numeric_dataframe)
+
+        kmeans = KMeans(n_clusters=3)  # Adjust the number of clusters as necessary
+        clusters = kmeans.fit_predict(scaled_data)
+
+        self.dataframe['Cluster'] = clusters
+        return self.dataframe
+
+    def plot_scatter_cluster(self, features):
+        """Plot a scatter plot for clustered data."""
+        plt.figure(figsize=(10, 6))
+        plt.scatter(self.dataframe[features[0]], self.dataframe[features[1]], c=self.dataframe['Cluster'], cmap='viridis', alpha=0.5)
+        plt.xlabel(features[0])
+        plt.ylabel(features[1])
+        plt.title('Scatter Plot of Clusters')
+        plt.grid(True)
+        plt.show()
+
+    def visualize_distributions(self):
+        """Visualize the distributions of clusters using violin plots."""
+        plt.figure(figsize=(10, 6))
+        sns.violinplot(x='Cluster', y='Total UL + DL', data=self.dataframe)
+        plt.title('Cluster Distribution of Total UL + DL')
+        plt.show()
+
+    def analyze_clusters(self):
+        """Analyze clusters and get descriptive statistics."""
+        cluster_data = self.dataframe.groupby('Cluster')
+        stats = cluster_data[['Dur. (ms)', 'Total UL + DL', 'Session Duration (seconds)']].agg(['min', 'max', 'mean', 'sum'])
+        return stats
+
+    def plot_bar_cluster_stats(self, stats, feature, stat_to_plot):
+        """Plot bar chart for cluster statistics."""
+        plt.figure(figsize=(10, 6))
+        stats[feature].plot(kind='bar', title=f'{stat_to_plot.capitalize()} of {feature} by Cluster')
+        plt.xlabel('Cluster')
+        plt.ylabel(stat_to_plot.capitalize())
+        plt.show()
+
+    def plot_pie_cluster_stats(self, stats, feature, stat_to_plot):
+        """Plot pie chart for cluster statistics."""
+        plt.figure(figsize=(8, 8))
+        # Extract the required statistic from the stats DataFrame
+        pie_data = stats[feature][stat_to_plot]  # Get the mean, min, max, etc. for the feature
+        pie_data.plot(kind='pie', title=f'{stat_to_plot.capitalize()} of {feature} by Cluster', autopct='%1.1f%%')
+        plt.ylabel('')
+        plt.show()
+
+    def convert_units(self):
+        """Convert all relevant metrics to consistent units (e.g., seconds for duration)."""
+        if 'Dur. (ms)' in self.dataframe.columns:
+            self.dataframe['Dur. (seconds)'] = self.dataframe['Dur. (ms)'] / 1000  # Convert milliseconds to seconds
