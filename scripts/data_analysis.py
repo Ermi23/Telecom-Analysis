@@ -1,6 +1,7 @@
 # data_analysis.py
 
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -9,8 +10,9 @@ pd.set_option('display.max_rows', None)  # Show all rows
 pd.set_option('display.max_columns', None)  # Show all columns
 
 class DataAnalysis:
-    def __init__(self, dataframe):
+    def __init__(self, dataframe, applications):
         self.dataframe = dataframe
+        self.app = applications
 
     def info(self):
         """Display information about the DataFrame."""
@@ -46,14 +48,6 @@ class DataAnalysis:
                 print(f"Error describing DataFrame: {e}")
         else:
             print("No DataFrame to analyze.")
-
-    # def data_types(self):
-    #     """Display data types of the DataFrame columns."""
-    #     if self.dataframe is not None:
-    #         print("DataFrame Data Types:")
-    #         print(self.dataframe.dtypes)
-    #     else:
-    #         print("No DataFrame to analyze.")
 
     def check_missing_values(self, print_output=True):
         """Check for missing values in the DataFrame, converting common null representations to NaN."""
@@ -328,17 +322,6 @@ class DataAnalysis:
         plt.legend()
         plt.grid(True)
         plt.show()
-    
-    # def visualize_dl_ul_data(dataframe):
-    #     """Visualize total DL and UL data per session."""
-    #     # Plot total download and upload data
-    #     dataframe[['Total DL (Bytes)', 'Total UL (Bytes)']].plot(kind='bar', figsize=(10, 6))
-    #     plt.title('Total Download and Upload Data per Session')
-    #     plt.xlabel('Session Index')
-    #     plt.ylabel('Data (Bytes)')
-    #     plt.xticks(rotation=0)
-    #     plt.legend(['Download (Bytes)', 'Upload (Bytes)'])
-    #     plt.show()
             
     def filter_relevant_columns(self):
         """Filter the DataFrame to keep only relevant columns."""
@@ -432,8 +415,9 @@ class DataAnalysis:
         for app in download_data.index:
             print(f"| {app:<20} | {download_data[app]:<21.2f} | {download_data_gb[app]:<19.2f} |")
 
+        print('\n \n')
                 # Print the numerical values in tabular format
-        print("| Source               | Download Data (Bytes) | Download Data (GB) |")
+        print("| Source               | Upload Data (Bytes) | Upload Data (GB) |")
         print("|----------------------|-----------------------|---------------------|")
         for app in upload_data.index:
             print(f"| {app:<20} | {upload_data[app]:<21.2f} | {upload_data_gb[app]:<19.2f} |")
@@ -471,4 +455,312 @@ class DataAnalysis:
         plt.xticks(rotation=45, ha='right')
         plt.legend(loc='upper right')
         plt.grid(True)
+        plt.show()
+
+    def calculate_total_data_volumes(self):
+        """Calculate total data volumes for each application by summing DL and UL data."""
+        total_data_volumes_dl = [self.dataframe[f'{app} DL (Bytes)'].sum() for app in self.app]
+        total_data_volumes_ul = [self.dataframe[f'{app} UL (Bytes)'].sum() for app in self.app]
+        total_data_volumes = [dl + ul for dl, ul in zip(total_data_volumes_dl, total_data_volumes_ul)]
+        return total_data_volumes
+
+    def plot_pie_chart(self, total_data_volumes):
+        """Plot a pie chart of total data volumes per application."""
+        plt.figure(figsize=(12, 8))
+        plt.pie(total_data_volumes, labels=self.app, autopct='%1.1f%%', startangle=140)
+        plt.title('Proportion of Total Data Volume by Application')
+        
+        # Add legend on the side with color coding and increased spacing
+        plt.legend(self.app, loc='center left', bbox_to_anchor=(1, 0.5), 
+                   title='Applications', title_fontsize='large')
+        plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+        plt.tight_layout()  # Adjust layout to prevent cramping
+        plt.show()
+
+    def calculate_mean_data_volumes(self):
+        """Calculate the mean DL and UL data volumes per application."""
+        mean_data_volumes_dl = [self.dataframe[f'{app} DL (Bytes)'].mean() for app in self.app]
+        mean_data_volumes_ul = [self.dataframe[f'{app} UL (Bytes)'].mean() for app in self.app]
+        
+        # Convert Bytes to MegaBytes (1 MB = 1048576 Bytes)
+        mean_data_volumes_dl = np.array(mean_data_volumes_dl) / 1048576
+        mean_data_volumes_ul = np.array(mean_data_volumes_ul) / 1048576
+        
+        return mean_data_volumes_dl, mean_data_volumes_ul
+
+    def plot_bar_chart(self, mean_data_volumes_dl, mean_data_volumes_ul):
+        """Plot a grouped bar chart of mean data volumes per application."""
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        bar_width = 0.35
+        index = np.arange(len(self.app))
+        
+        plt.figure(figsize=(12, 8))
+
+        plt.bar(index, mean_data_volumes_dl, bar_width, color='skyblue', label='Mean Download Volume')
+        plt.bar(index + bar_width, mean_data_volumes_ul, bar_width, color='lightgreen', label='Mean Upload Volume')
+
+        plt.xlabel('Application')
+        plt.ylabel('Mean Data Volume (Mega Bytes)')
+        plt.title('Mean Data Volume per Application')
+        plt.xticks(index + bar_width / 2, self.app, rotation=45, ha='right')
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+    def calculate_total_volumes(self):
+        """Calculate total download (DL) and upload (UL) volumes for each application."""
+        total_volumes = {
+            'Social Media': self.dataframe['Social Media DL (Bytes)'] + self.dataframe['Social Media UL (Bytes)'],
+            'Google': self.dataframe['Google DL (Bytes)'] + self.dataframe['Google UL (Bytes)'],
+            'Email': self.dataframe['Email DL (Bytes)'] + self.dataframe['Email UL (Bytes)'],
+            'Youtube': self.dataframe['Youtube DL (Bytes)'] + self.dataframe['Youtube UL (Bytes)'],
+            'Netflix': self.dataframe['Netflix DL (Bytes)'] + self.dataframe['Netflix UL (Bytes)'],
+            'Gaming': self.dataframe['Gaming DL (Bytes)'] + self.dataframe['Gaming UL (Bytes)'],
+            'Other': self.dataframe['Other DL (Bytes)'] + self.dataframe['Other UL (Bytes)']
+        }
+        return pd.DataFrame(total_volumes)
+
+    def calculate_correlation_matrix(self, total_volumes_df):
+        """Calculate the correlation matrix for total data volumes."""
+        return total_volumes_df.corr()
+
+    def plot_correlation_heatmap(self, correlation_matrix):
+        """Plot a heatmap of the correlation matrix."""
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+        plt.title('Correlation Matrix of Total Data Volumes for Each Application')
+        plt.xlabel('Application')
+        plt.ylabel('Application')
+        plt.xticks(rotation=45)
+        plt.yticks(rotation=0)
+        plt.show()
+
+    def calculate_combined_total_data_volume(self):
+        """Calculate total download (DL) and upload (UL) data for all applications combined."""
+        total_dl = self.dataframe[[col for col in self.dataframe.columns if 'DL' in col]].sum(axis=1)
+        total_ul = self.dataframe[[col for col in self.dataframe.columns if 'UL' in col]].sum(axis=1)
+        total_data_volume = total_dl + total_ul
+        return total_data_volume
+
+    def print_total_data_volume(self, total_data_volume):
+        """Print the total data volume in bytes and terabytes."""
+        total_data_sum = total_data_volume.sum()
+        print("Total Data Volume (Bytes) for all Applications Combined:")
+        print(f"{total_data_sum} Byte, or {total_data_sum / 1099511627776:.2f} Tera Byte")
+
+    def aggregate_xdr_sessions(self):
+        """Count the number of xDR sessions per user."""
+        return self.dataframe.groupby('MSISDN/Number')['Bearer Id'].count().reset_index(name='xDR_sessions')
+
+    def aggregate_session_duration(self):
+        """Aggregate the total session duration per user."""
+        return self.dataframe.groupby('MSISDN/Number')['Dur. (ms)'].sum().reset_index(name='Total_session_duration (s)')
+
+    def aggregate_dl_ul_data(self):
+        """Aggregate the total download (DL) and upload (UL) data per user."""
+        total_dl = self.dataframe.groupby('MSISDN/Number')['Total DL (Bytes)'].sum().reset_index(name='Total_DL (Bytes)')
+        total_ul = self.dataframe.groupby('MSISDN/Number')['Total UL (Bytes)'].sum().reset_index(name='Total_UL (Bytes)')
+        return pd.merge(total_dl, total_ul, on='MSISDN/Number')
+    
+    def aggregate_data_volume_per_application(self):
+        """Aggregate the total data volume for each application (social media, YouTube, etc.) per user."""
+        columns_to_aggregate = {
+            'Social Media DL (Bytes)': 'Social Media DL (Bytes)',
+            'Social Media UL (Bytes)': 'Social Media UL (Bytes)',
+            'Youtube DL (Bytes)': 'Youtube DL (Bytes)',
+            'Youtube UL (Bytes)': 'Youtube UL (Bytes)',
+            'Netflix DL (Bytes)': 'Netflix DL (Bytes)',
+            'Netflix UL (Bytes)': 'Netflix UL (Bytes)',
+            'Google DL (Bytes)': 'Google DL (Bytes)',
+            'Google UL (Bytes)': 'Google UL (Bytes)',
+            'Email DL (Bytes)': 'Email DL (Bytes)',
+            'Email UL (Bytes)': 'Email UL (Bytes)',
+            'Gaming DL (Bytes)': 'Gaming DL (Bytes)',
+            'Gaming UL (Bytes)': 'Gaming UL (Bytes)',
+            'Other DL (Bytes)': 'Other DL (Bytes)',
+            'Other UL (Bytes)': 'Other UL (Bytes)'
+        }
+
+        # Aggregate download and upload data for each application per user
+        aggregated_data = self.dataframe.groupby('MSISDN/Number').agg({
+            col: 'sum' for col in columns_to_aggregate.keys()
+        }).reset_index()
+
+        # Rename columns for better readability
+        aggregated_data = aggregated_data.rename(columns=columns_to_aggregate)
+        return aggregated_data
+
+    # def aggregate_all(self):
+    #     """Aggregate all the required information per user."""
+    #     # Aggregate individual metrics
+    #     xdr_sessions = self.aggregate_xdr_sessions()
+    #     session_duration = self.aggregate_session_duration()
+    #     dl_ul_data = self.aggregate_dl_ul_data()
+    #     application_data = self.aggregate_data_volume_per_application()
+
+    #     # Merge all data frames
+    #     aggregated_df = pd.merge(xdr_sessions, session_duration, on='MSISDN/Number')
+    #     aggregated_df = pd.merge(aggregated_df, dl_ul_data, on='MSISDN/Number')
+    #     aggregated_df = pd.merge(aggregated_df, application_data, on='MSISDN/Number')
+
+    #     return aggregated_df
+
+    def aggregate_all(self):
+        """Aggregate all the required information per user, sorted by session duration."""
+        # Aggregate individual metrics
+        xdr_sessions = self.aggregate_xdr_sessions()
+        session_duration = self.aggregate_session_duration()
+        dl_ul_data = self.aggregate_dl_ul_data()  # Download and Upload data aggregation
+        application_data = self.aggregate_data_volume_per_application()
+
+        # Merge all data frames
+        aggregated_df = pd.merge(xdr_sessions, session_duration, on='MSISDN/Number')
+        aggregated_df = pd.merge(aggregated_df, dl_ul_data, on='MSISDN/Number')
+        aggregated_df = pd.merge(aggregated_df, application_data, on='MSISDN/Number')
+
+        # Calculate total download (DL) and upload (UL) data for each user by summing the relevant columns
+        aggregated_df['Total_DL'] = aggregated_df[[col for col in aggregated_df.columns if 'DL' in col]].sum(axis=1)
+        aggregated_df['Total_UL'] = aggregated_df[[col for col in aggregated_df.columns if 'UL' in col]].sum(axis=1)
+
+        # Sort the dataframe by session duration in descending order (large number first)
+        aggregated_df = aggregated_df.sort_values(by='Total_session_duration (s)', ascending=False)
+
+        return aggregated_df
+    
+    # def plot_xdr_sessions_per_user(self, aggregated_df):
+    #     """Bar chart for xDR sessions per user."""
+    #     plt.figure(figsize=(10, 6))
+    #     sns.barplot(x='MSISDN/Number', y='xDR_sessions', data=aggregated_df, palette='viridis')
+    #     plt.xticks(rotation=45, ha='right')
+    #     plt.title('Number of xDR Sessions per User')
+    #     plt.xlabel('User (MSISDN/Number)')
+    #     plt.ylabel('Number of xDR Sessions')
+    #     plt.tight_layout()
+    #     plt.show()
+    def plot_xdr_sessions_per_user(self, aggregated_df):
+        """Bar chart for the top 10 xDR sessions per user."""
+        # Sort the dataframe by xDR sessions in descending order and select the top 10
+        top_10_users = aggregated_df.sort_values(by='Total_session_duration (s)', ascending=False).head(10)
+        
+        # Plot the data for the top 10 users
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x='MSISDN/Number', y='xDR_sessions', data=top_10_users, palette='viridis')
+        plt.xticks(rotation=45, ha='right')
+        plt.title('Top 10 Users by Number of xDR Sessions')
+        plt.xlabel('User (MSISDN/Number)')
+        plt.ylabel('Number of xDR Sessions')
+        plt.tight_layout()
+        plt.show()
+
+    def plot_data_volume_proportion(self, aggregated_df):
+        """Pie chart for total data volume by application."""
+        total_data_per_app = aggregated_df[['Social Media DL (Bytes)', 'Social Media UL (Bytes)',
+                                            'Google DL (Bytes)', 'Google UL (Bytes)',
+                                            'Email DL (Bytes)', 'Email UL (Bytes)',
+                                            'Youtube DL (Bytes)', 'Youtube UL (Bytes)',
+                                            'Netflix DL (Bytes)', 'Netflix UL (Bytes)',
+                                            'Gaming DL (Bytes)', 'Gaming UL (Bytes)',
+                                            'Other DL (Bytes)', 'Other UL (Bytes)']].sum()
+        labels = total_data_per_app.index
+        sizes = total_data_per_app.values
+
+        plt.figure(figsize=(8, 8))
+        plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140, colors=sns.color_palette('Set2'))
+        plt.axis('equal')  # Equal aspect ratio ensures the pie chart is circular.
+        plt.title('Proportion of Total Data Volume by Application')
+        plt.show()
+
+    # def plot_dl_ul_data_per_user(self, aggregated_df):
+    #     """Stacked bar chart for download and upload data per user."""
+    #     apps = ['Social Media DL (Bytes)', 'Social Media UL (Bytes)',
+    #             'Google DL (Bytes)', 'Google UL (Bytes)',
+    #             'Email DL (Bytes)', 'Email UL (Bytes)',
+    #             'Youtube DL (Bytes)', 'Youtube UL (Bytes)',
+    #             'Netflix DL (Bytes)', 'Netflix UL (Bytes)',
+    #             'Gaming DL (Bytes)', 'Gaming UL (Bytes)',
+    #             'Other DL (Bytes)', 'Other UL (Bytes)']
+    #     ul_apps = ['Social Media UL (Bytes)', 'Google UL (Bytes)', 'Email UL (Bytes)', 'Youtube UL (Bytes)', 'Netflix UL (Bytes)', 'Gaming UL (Bytes)', 'Other UL (Bytes)']
+        
+    #     aggregated_df['Total_DL'] = aggregated_df[apps].sum(axis=1)
+    #     aggregated_df['Total_UL'] = aggregated_df[ul_apps].sum(axis=1)
+
+    #     # Plot the stacked bar chart
+    #     plt.figure(figsize=(12, 8))
+    #     sns.barplot(x='MSISDN/Number', y='Total_DL', data=aggregated_df, color='skyblue', label='Download')
+    #     sns.barplot(x='MSISDN/Number', y='Total_UL', data=aggregated_df, color='lightgreen', label='Upload')
+
+    #     plt.xticks(rotation=45, ha='right')
+    #     plt.title('Download and Upload Data per User')
+    #     plt.xlabel('User (MSISDN/Number)')
+    #     plt.ylabel('Total Data Volume (Bytes)')
+    #     plt.legend(loc='upper right')
+    #     plt.tight_layout()
+    #     plt.show()
+
+    def plot_dl_ul_data_per_user(self, aggregated_df):
+        """Stacked bar chart for download and upload data per user (top 10 users)."""
+        apps = ['Social Media DL (Bytes)', 'Social Media UL (Bytes)',
+                'Google DL (Bytes)', 'Google UL (Bytes)',
+                'Email DL (Bytes)', 'Email UL (Bytes)',
+                'Youtube DL (Bytes)', 'Youtube UL (Bytes)',
+                'Netflix DL (Bytes)', 'Netflix UL (Bytes)',
+                'Gaming DL (Bytes)', 'Gaming UL (Bytes)',
+                'Other DL (Bytes)', 'Other UL (Bytes)']
+        ul_apps = ['Social Media UL (Bytes)', 'Google UL (Bytes)', 'Email UL (Bytes)', 'Youtube UL (Bytes)', 
+                'Netflix UL (Bytes)', 'Gaming UL (Bytes)', 'Other UL (Bytes)']
+        
+        # Calculate total download and upload data for all applications
+        aggregated_df['Total_DL'] = aggregated_df[[col for col in apps if 'DL' in col]].sum(axis=1)
+        aggregated_df['Total_UL'] = aggregated_df[ul_apps].sum(axis=1)
+
+        # Select only the top 10 users by total data volume
+        top_10_users = aggregated_df.sort_values(by='Total_session_duration (s)', ascending=False).nlargest(10, 'Total_DL')
+
+        # Plot the stacked bar chart for top 10 users
+        plt.figure(figsize=(12, 8))
+        sns.barplot(x='MSISDN/Number', y='Total_DL', data=top_10_users, color='skyblue', label='Download')
+        sns.barplot(x='MSISDN/Number', y='Total_UL', data=top_10_users, color='lightgreen', label='Upload')
+
+        plt.xticks(rotation=45, ha='right')
+        plt.title('Download and Upload Data for Top 10 Users')
+        plt.xlabel('User (MSISDN/Number)')
+        plt.ylabel('Total Data Volume (Bytes)')
+        plt.legend(loc='upper right')
+        plt.tight_layout()
+        plt.show()
+    
+    def plot_application_correlation_heatmap(aself, aggregated_df):
+        """Heatmap for correlations of data volumes between different applications."""
+        # Extracting DL data for applications
+        app_columns = ['Social Media DL (Bytes)', 'Youtube DL (Bytes)', 'Netflix DL (Bytes)', 'Google DL (Bytes)', 
+                    'Email DL (Bytes)', 'Gaming DL (Bytes)', 'Other DL (Bytes)']
+
+        # Compute correlation matrix
+        correlation_matrix = aggregated_df[app_columns].corr()
+
+        # Plot heatmap
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+        plt.title('Correlation Matrix of Data Volumes Between Applications')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        plt.show()
+    
+    def plot_total_data_volume_over_time(self, df):
+        """Line plot showing total data volume over time."""
+        # Group by the 'Start' timestamp and sum total data for each timestamp
+        df['Total Data Volume'] = df[['Total DL (Bytes)', 'Total UL (Bytes)']].sum(axis=1)
+        time_series = df.groupby('Start')['Total Data Volume'].sum().reset_index()
+
+        # Plot
+        plt.figure(figsize=(12, 6))
+        sns.lineplot(x='Start', y='Total Data Volume', data=time_series, marker='o')
+        plt.xticks(rotation=45, ha='right')
+        plt.title('Total Data Volume Over Time')
+        plt.xlabel('Time')
+        plt.ylabel('Total Data Volume (Bytes)')
+        plt.grid(True)
+        plt.tight_layout()
         plt.show()
