@@ -21,7 +21,7 @@ jobs:
     - name: Set up Python # Sets up the Python environment
       uses: actions/setup-python@v4 # Updated to v4 for compatibility with Node.js 16 and 20
       with:
-        python-version: '3.12' # Specifies the Python version to use
+        python-version: '3.10' # Specifies the Python version to use
 
     # This step installs the required dependencies for the project
     - name: Install dependencies
