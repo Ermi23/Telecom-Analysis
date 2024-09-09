@@ -4,7 +4,7 @@ pandas
 pick
 seaborn
 sqlalchemy
-psycopg2
+# psycopg2
 pandas
 sql
 psycopg2-binary
