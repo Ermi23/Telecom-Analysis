@@ -9,3 +9,5 @@ pandas
 sql
 psycopg2-binary
 scikit-learn
+streamlit
+openpyxl
