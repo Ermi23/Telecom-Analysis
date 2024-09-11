@@ -26,8 +26,8 @@ class TelecomSatisfactionAnalytics:
             for col in numeric_columns:
                 if self.df[col].isnull().sum() > 0:
                     self.df[col].fillna(self.df[col].mean(), inplace=True)
-                    print(f"Filled missing values in column: {col}")
-            # print("Missing values have been filled with the mean for numeric columns.")
+                    # print(f"Filled missing values in column: {col}")
+            print("Missing values have been filled with the mean for numeric columns.")
         else:
             print("No DataFrame to analyze.")
 
@@ -63,6 +63,10 @@ class TelecomSatisfactionAnalytics:
     def report_top_satisfied(self):
         """Report the top 10 satisfied customers."""
         return self.df.nlargest(10, 'Satisfaction Score')[['MSISDN/Number', 'Satisfaction Score']]
+    
+    def report_Low_satisfied(self):
+        """Report the top 10 least satisfied customers."""
+        return self.df.nsmallest(10, 'Satisfaction Score')[['MSISDN/Number', 'Satisfaction Score']]
 
     def build_regression_model(self):
         """Build and evaluate a regression model for predicting satisfaction scores."""
